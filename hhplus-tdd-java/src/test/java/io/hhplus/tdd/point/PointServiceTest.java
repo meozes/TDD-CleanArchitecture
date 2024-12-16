@@ -12,6 +12,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -38,6 +41,23 @@ public class PointServiceTest {
     }
 
     @Test
+    public void 회원_불가_id() {
+        // given
+        long userId = -1;
+        long amount = 10000;
+
+        // When & Then
+        CustomException e = assertThrows(
+                CustomException.class,
+                () -> pointService.chargePoints(userId, amount)
+        );
+
+        assertEquals(
+                ErrorCode.INVALID_USER_ID.getCode(), e.getErrorCode().getCode()
+        );
+    }
+
+    @Test
     public void 충전_불가_포인트() {
 
         // given
@@ -53,6 +73,7 @@ public class PointServiceTest {
         assertEquals(
                 ErrorCode.INVALID_POINT_INPUT.getCode(), e.getErrorCode().getCode()
         );
+
     }
 
     @Test
