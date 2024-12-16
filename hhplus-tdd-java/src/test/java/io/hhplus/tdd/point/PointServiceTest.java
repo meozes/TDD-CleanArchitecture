@@ -1,6 +1,9 @@
 package io.hhplus.tdd.point;
 
 
+import io.hhplus.tdd.CustomException;
+import io.hhplus.tdd.ErrorCode;
+import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +27,33 @@ public class PointServiceTest {
     @Mock
     private UserPointTable userPointTable;
 
+    @Mock
+    private PointHistoryTable pointHistoryTable;
+
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        pointService = new PointService(userPointTable);
+        pointService = new PointService(userPointTable, pointHistoryTable);
     }
 
+    @Test
+    public void 충전_불가_포인트() {
+
+        // given
+        long userId = 1;
+        long amount = -10000;
+
+        // When & Then
+        CustomException e = assertThrows(
+                CustomException.class,
+                () -> pointService.chargePoints(userId, amount)
+        );
+
+        assertEquals(
+                ErrorCode.INVALID_POINT_INPUT.getCode(), e.getErrorCode().getCode()
+        );
+    }
 
     @Test
     public void 신규_회원_포인트_충전() {
@@ -47,29 +70,29 @@ public class PointServiceTest {
         // when
         UserPoint result = pointService.chargePoints(userId, amount);
 
-        // then()
+        // then
         assertThat(result.id()).isEqualTo(userPoint.id());
         assertThat(result.point()).isEqualTo(userPoint.point());
-
     }
 
     @Test
-    public void 음수_포인트() {
-
+    public void 기존_회원_포인트_충전() {
         // given
-        long userId = 1L;
-        long amount = -10000;
+        long userId = 2;
+        long prevAmount = 20000;
+        long chargeAmount = 30000;
 
-        // When & Then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> pointService.chargePoints(userId, amount)
-        );
+        UserPoint userPoint = new UserPoint(userId, prevAmount, System.currentTimeMillis()); // 기존 회원
+        given(userPointTable.selectById(userId)).willReturn(userPoint);
+        given(userPointTable.insertOrUpdate(anyLong(), anyLong())).willReturn(new UserPoint(userId, prevAmount+chargeAmount, System.currentTimeMillis())); //추가 충전
 
-        assertEquals(
-                "java.lang.IllegalArgumentException: 포인트는 음수 값이 될 수 없습니다.",
-                exception.toString()
-        );
+        UserPoint result = pointService.chargePoints(userId, prevAmount+chargeAmount);
+
+        // then
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.point()).isEqualTo(prevAmount+chargeAmount);
 
     }
+
+
 }
