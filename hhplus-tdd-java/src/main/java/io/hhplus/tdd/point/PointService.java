@@ -7,6 +7,8 @@ import io.hhplus.tdd.database.UserPointTable;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 public class PointService {
@@ -21,13 +23,12 @@ public class PointService {
         chargeValidations(id, amount);
 
         UserPoint userPoint = userPointTable.selectById(id);
-        long newPoint = userPoint.point();
 
-        if (userPoint != null) { //신규가 아니면
+        if (userPoint != null) { // 기존 회원
             long prevPoint = userPoint.point();
             amount += prevPoint;
 
-            if (newPoint > MAX_POINT_LIMIT) {
+            if (amount > MAX_POINT_LIMIT) {
                 throw new CustomException(ErrorCode.POINT_EXCEEDED);
             }
         }
@@ -53,4 +54,28 @@ public class PointService {
     }
 
 
+    public UserPoint getPointByUser(long id) {
+        if (id <= 0) {
+            throw new CustomException(ErrorCode.INVALID_USER_ID);
+        }
+
+        UserPoint user = userPointTable.selectById(id);
+        if (user == null){
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+        return user;
+    }
+
+    public List<PointHistory> getPointHistoriesByUser(long id) {
+        if (id <= 0) {
+            throw new CustomException(ErrorCode.INVALID_USER_ID);
+        }
+
+        UserPoint user = userPointTable.selectById(id);
+        if (user == null){
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        return pointHistoryTable.selectAllByUserId(id);
+    }
 }
