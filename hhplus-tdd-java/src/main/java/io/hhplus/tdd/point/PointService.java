@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @RequiredArgsConstructor
@@ -17,20 +19,25 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
+    private final Lock lock = new ReentrantLock(); // 동시성 제어 위한 lock
 
     public UserPoint chargePoints(long id, long chargeAmount) {
 
-        long prevPoint = 0;
         chargeValidations(id, chargeAmount);
 
-        UserPoint userPoint = userPointTable.selectById(id);
-        if (userPoint != null){
-            prevPoint = userPoint.point();
+        lock.lock();
+        try{
+            long prevPoint = 0;
+            UserPoint userPoint = userPointTable.selectById(id);
+            if (userPoint != null){
+                prevPoint = userPoint.point();
+            }
+            UserPoint result = userPointTable.insertOrUpdate(id, chargeAmount+prevPoint);
+            pointHistoryTable.insert(id, chargeAmount, TransactionType.CHARGE, System.currentTimeMillis());
+            return result;
+        } finally {
+            lock.unlock();
         }
-
-        UserPoint result = userPointTable.insertOrUpdate(id, chargeAmount+prevPoint);
-        pointHistoryTable.insert(id, chargeAmount, TransactionType.CHARGE, System.currentTimeMillis());
-        return result;
     }
 
     private static void chargeValidations(long id, long chargeAmount) {
@@ -78,19 +85,23 @@ public class PointService {
 
         usePointsValidations(id, useAmount);
 
-        UserPoint userPoint = userPointTable.selectById(id);
-        if (userPoint == null){
-            throw new CustomException(ErrorCode.USER_NOT_FOUND);
-        }
+        lock.lock();
+        try{
+            UserPoint userPoint = userPointTable.selectById(id);
+            if (userPoint == null){
+                throw new CustomException(ErrorCode.USER_NOT_FOUND);
+            }
 
-        long nowPoint = userPoint.point();
-        if (nowPoint < useAmount) {
-            throw new CustomException(ErrorCode.POINT_INSUFFICIENT);
+            long nowPoint = userPoint.point();
+            if (nowPoint < useAmount) {
+                throw new CustomException(ErrorCode.POINT_INSUFFICIENT);
+            }
+            UserPoint result = userPointTable.insertOrUpdate(id, nowPoint-useAmount);
+            pointHistoryTable.insert(id, useAmount, TransactionType.USE, System.currentTimeMillis());
+            return result;
+        }finally {
+            lock.unlock();
         }
-
-        UserPoint result = userPointTable.insertOrUpdate(id, nowPoint-useAmount);
-        pointHistoryTable.insert(id, useAmount, TransactionType.USE, System.currentTimeMillis());
-        return result;
     }
 
     private void usePointsValidations(long id, long useAmount) {

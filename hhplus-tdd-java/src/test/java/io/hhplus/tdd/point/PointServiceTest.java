@@ -3,7 +3,6 @@ package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.CustomException;
 import io.hhplus.tdd.ErrorCode;
-import io.hhplus.tdd.TddApplication;
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
