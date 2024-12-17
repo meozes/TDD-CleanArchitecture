@@ -3,6 +3,7 @@ package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.CustomException;
 import io.hhplus.tdd.ErrorCode;
+import io.hhplus.tdd.TddApplication;
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-
+import org.springframework.boot.test.context.SpringBootTest;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,9 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
+import static org.mockito.Mockito.*;
 
 public class PointServiceTest {
 
@@ -53,6 +52,10 @@ public class PointServiceTest {
         );
 
         assertEquals(ErrorCode.INVALID_USER_ID.getCode(), e.getErrorCode().getCode());
+
+        // 실패 시 다음 로직 수행되면 안된다.
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
     }
 
     @Test
@@ -87,6 +90,10 @@ public class PointServiceTest {
 
         assertEquals(ErrorCode.INVALID_POINT_INPUT.getCode(), e.getErrorCode().getCode());
 
+        // 실패 시 다음 로직 수행되면 안된다.
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
+
 
         // 준비
         long userId2 = 2L;
@@ -99,6 +106,10 @@ public class PointServiceTest {
         );
 
         assertEquals(ErrorCode.INPUT_POINT_EXCEEDED.getCode(), e2.getErrorCode().getCode());
+
+        // 실패 시 다음 로직 수행되면 안된다.
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
 
     }
 
@@ -166,6 +177,10 @@ public class PointServiceTest {
         );
 
         assertEquals(ErrorCode.POINT_INSUFFICIENT.getCode(), e.getErrorCode().getCode());
+
+        // 실패 시 다음 로직 수행되면 안된다.
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
     }
 
     @Test
