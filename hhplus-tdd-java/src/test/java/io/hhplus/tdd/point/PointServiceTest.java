@@ -41,7 +41,7 @@ public class PointServiceTest {
     }
 
     @Test
-    public void 회원_불가_id() {
+    public void 유효하지_않은_id() {
         // 준비
         long userId = -1L;
         long amount = 10000L;
@@ -53,6 +53,23 @@ public class PointServiceTest {
         );
 
         assertEquals(ErrorCode.INVALID_USER_ID.getCode(), e.getErrorCode().getCode());
+    }
+
+    @Test
+    public void 존재하지_않는_회원_조회() {
+        // 준비
+        long id = 100L;
+
+        // 실행
+        given(userPointTable.selectById(id)).willReturn(null);
+
+        //검증
+        CustomException e = assertThrows(
+                CustomException.class,
+                () -> pointService.getPointByUser(id)
+        );
+
+        assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), e.getErrorCode().getCode());
     }
 
     @Test
@@ -131,22 +148,6 @@ public class PointServiceTest {
                 .insert(eq(userId), eq(chargeAmount), eq(TransactionType.CHARGE), anyLong());
     }
 
-    @Test
-    public void 존재하지_않는_회원_조회() {
-        // 준비
-        long id = 100L;
-
-        // 실행
-        given(userPointTable.selectById(id)).willReturn(null);
-
-        //검증
-        CustomException e = assertThrows(
-                CustomException.class,
-                () -> pointService.getPointByUser(id)
-        );
-
-        assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), e.getErrorCode().getCode());
-    }
 
     @Test
     public void 잔고_초과_사용() {

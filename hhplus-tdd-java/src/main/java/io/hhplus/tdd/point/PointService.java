@@ -33,17 +33,17 @@ public class PointService {
         return result;
     }
 
-    private static void chargeValidations(long id, long amount) {
+    private static void chargeValidations(long id, long chargeAmount) {
 
         if (id <= 0) {
             throw new CustomException(ErrorCode.INVALID_USER_ID);
         }
 
-        if (amount <= 0) {
+        if (chargeAmount <= 0) {
             throw new CustomException(ErrorCode.INVALID_POINT_INPUT);
         }
 
-        if (amount > MAX_POINT_LIMIT) {
+        if (chargeAmount > MAX_POINT_LIMIT) {
             throw new CustomException(ErrorCode.INPUT_POINT_EXCEEDED);
         }
     }
@@ -74,9 +74,9 @@ public class PointService {
         return pointHistoryTable.selectAllByUserId(id);
     }
 
-    public UserPoint usePoints(long id, long amount) {
+    public UserPoint usePoints(long id, long useAmount) {
 
-        usePointsValidations(id, amount);
+        usePointsValidations(id, useAmount);
 
         UserPoint userPoint = userPointTable.selectById(id);
         if (userPoint == null){
@@ -84,21 +84,21 @@ public class PointService {
         }
 
         long nowPoint = userPoint.point();
-        if (nowPoint < amount) {
+        if (nowPoint < useAmount) {
             throw new CustomException(ErrorCode.POINT_INSUFFICIENT);
         }
 
-        UserPoint result = userPointTable.insertOrUpdate(id, nowPoint-amount);
-        pointHistoryTable.insert(id, amount, TransactionType.USE, System.currentTimeMillis());
+        UserPoint result = userPointTable.insertOrUpdate(id, nowPoint-useAmount);
+        pointHistoryTable.insert(id, useAmount, TransactionType.USE, System.currentTimeMillis());
         return result;
     }
 
-    private void usePointsValidations(long id, long amount) {
+    private void usePointsValidations(long id, long useAmount) {
         if (id <= 0) {
             throw new CustomException(ErrorCode.INVALID_USER_ID);
         }
 
-        if (amount <= 0) {
+        if (useAmount <= 0) {
             throw new CustomException(ErrorCode.INVALID_POINT_INPUT);
         }
     }
