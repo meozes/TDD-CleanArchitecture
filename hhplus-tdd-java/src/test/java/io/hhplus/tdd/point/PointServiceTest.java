@@ -13,11 +13,13 @@ import org.mockito.Mock;
 
 
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 
 public class PointServiceTest {
@@ -41,8 +43,8 @@ public class PointServiceTest {
     @Test
     public void 회원_불가_id() {
         // 준비
-        long userId = -1;
-        long amount = 10000;
+        long userId = -1L;
+        long amount = 10000L;
 
         // 실행 & 검증
         CustomException e = assertThrows(
@@ -50,17 +52,15 @@ public class PointServiceTest {
                 () -> pointService.chargePoints(userId, amount)
         );
 
-        assertEquals(
-                ErrorCode.INVALID_USER_ID.getCode(), e.getErrorCode().getCode()
-        );
+        assertEquals(ErrorCode.INVALID_USER_ID.getCode(), e.getErrorCode().getCode());
     }
 
     @Test
     public void 충전_불가_포인트() {
 
         // 준비
-        long userId = 1;
-        long amount = -10000;
+        long userId = 1L;
+        long amount = -10000L;
 
         // 실행 & 검증
         CustomException e = assertThrows(
@@ -68,56 +68,73 @@ public class PointServiceTest {
                 () -> pointService.chargePoints(userId, amount)
         );
 
-        assertEquals(
-                ErrorCode.INVALID_POINT_INPUT.getCode(), e.getErrorCode().getCode()
+        assertEquals(ErrorCode.INVALID_POINT_INPUT.getCode(), e.getErrorCode().getCode());
+
+
+        // 준비
+        long userId2 = 2L;
+        long amount2 = 9000000L;
+
+        // 실행 & 검증
+        CustomException e2 = assertThrows(
+                CustomException.class,
+                () -> pointService.chargePoints(userId2, amount2)
         );
+
+        assertEquals(ErrorCode.INPUT_POINT_EXCEEDED.getCode(), e2.getErrorCode().getCode());
 
     }
 
     @Test
     public void 신규_회원_포인트_충전() {
         // 준비
-        long userId = 1;
-        long amount = 10000;
+        long userId = 1L;
+        long amount = 10000L;
 
         UserPoint userPoint = new UserPoint(userId, amount, System.currentTimeMillis());
 
         // 유저가 존재하지 않는 경우 신규 등록
-        given(userPointTable.selectById(anyLong())).willReturn(null); // 무조건 null 리턴하여 존재하지 않는 경우 만든다.
+        given(userPointTable.selectById(anyLong())).willReturn(null);
         given(userPointTable.insertOrUpdate(anyLong(), anyLong())).willReturn(userPoint);
 
         // 실행
         UserPoint result = pointService.chargePoints(userId, amount);
 
         // 검증
-        assertThat(result.id()).isEqualTo(userPoint.id());
-        assertThat(result.point()).isEqualTo(userPoint.point());
+        assertEquals(result.id(), userPoint.id());
+        assertEquals(result.point(), userPoint.point());
+
+        verify(pointHistoryTable, times(1))
+                .insert(eq(userId), eq(amount), eq(TransactionType.CHARGE), anyLong()); //이력 저장여부 확인
     }
 
     @Test
     public void 기존_회원_포인트_충전() {
         // 준비
-        long userId = 2;
-        long prevAmount = 20000;
-        long chargeAmount = 30000;
+        long userId = 2L;
+        long prevAmount = 20000L;
+        long chargeAmount = 30000L;
+        long expectedTotal = prevAmount + chargeAmount;
 
-        UserPoint userPoint = new UserPoint(userId, prevAmount, System.currentTimeMillis()); // 기존 회원
+        UserPoint userPoint = new UserPoint(userId, prevAmount, System.currentTimeMillis());
         given(userPointTable.selectById(userId)).willReturn(userPoint);
-        given(userPointTable.insertOrUpdate(anyLong(), anyLong())).willReturn(new UserPoint(userId, prevAmount+chargeAmount, System.currentTimeMillis())); //추가 충전
+        given(userPointTable.insertOrUpdate(anyLong(), anyLong())).willReturn(new UserPoint(userId, expectedTotal, System.currentTimeMillis()));
 
         // 실행
-        UserPoint result = pointService.chargePoints(userId, prevAmount+chargeAmount);
+        UserPoint result = pointService.chargePoints(userId, chargeAmount);
 
         // 검증
-        assertThat(result.id()).isEqualTo(userId);
-        assertThat(result.point()).isEqualTo(prevAmount+chargeAmount);
+        assertEquals(result.id(), userId);
+        assertEquals(result.point(), expectedTotal);
 
+        verify(pointHistoryTable, times(1))
+                .insert(eq(userId), eq(chargeAmount), eq(TransactionType.CHARGE), anyLong());
     }
 
     @Test
     public void 존재하지_않는_회원_조회() {
         // 준비
-        long id = 100;
+        long id = 100L;
 
         // 실행
         given(userPointTable.selectById(id)).willReturn(null);
@@ -128,11 +145,46 @@ public class PointServiceTest {
                 () -> pointService.getPointByUser(id)
         );
 
-        assertEquals(
-                ErrorCode.USER_NOT_FOUND.getCode(), e.getErrorCode().getCode()
-        );
-
+        assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), e.getErrorCode().getCode());
     }
 
-    
+    @Test
+    public void 잔고_초과_사용() {
+
+        // 준비
+        long id = 1L;
+        long amount = 10000L; //기존잔고
+
+        UserPoint userPoint = new UserPoint(id, amount, System.currentTimeMillis());
+        given(userPointTable.selectById(id)).willReturn(userPoint);
+
+        // 실행 & 검증
+        CustomException e = assertThrows(
+                CustomException.class,
+                () -> pointService.usePoints(id, 50000L)
+        );
+
+        assertEquals(ErrorCode.POINT_INSUFFICIENT.getCode(), e.getErrorCode().getCode());
+    }
+
+    @Test
+    public void 포인트_사용() {
+        // 준비
+        long id = 1L;
+        long prevAmount = 50000L; //기존잔고
+        long useAmount = 10000L;
+
+        UserPoint userPoint = new UserPoint(id, prevAmount, System.currentTimeMillis());
+        given(userPointTable.selectById(id)).willReturn(userPoint);
+        given(userPointTable.insertOrUpdate(anyLong(), anyLong())).willReturn(new UserPoint(id, prevAmount-useAmount, System.currentTimeMillis()));
+
+        // 실행
+        UserPoint result = pointService.usePoints(id, useAmount);
+
+        // 검증
+        assertEquals(result.point(), prevAmount-useAmount);
+
+        verify(pointHistoryTable, times(1))
+                .insert(eq(id), eq(useAmount), eq(TransactionType.USE), anyLong());
+    }
 }

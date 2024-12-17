@@ -1,5 +1,6 @@
 package io.hhplus.tdd.point;
 
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
@@ -7,11 +8,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/point")
 public class PointController {
 
     private static final Logger log = LoggerFactory.getLogger(PointController.class);
-    PointService pointService;
+    private final PointService pointService;
 
     /**
      * 포인트 조회
@@ -45,13 +47,13 @@ public class PointController {
     }
 
     /**
-     * TODO - 특정 유저의 포인트를 사용하는 기능을 작성해주세요.
+     * 포인트 사용
      */
     @PatchMapping("{id}/use")
     public UserPoint use(
             @PathVariable long id,
             @RequestBody long amount
     ) {
-        return new UserPoint(0, 0, 0);
+        return pointService.usePoints(id, amount);
     }
 }
