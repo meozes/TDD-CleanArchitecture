@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.concurrent.locks.Lock;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -19,13 +19,17 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
-    private final Lock lock = new ReentrantLock(); // 동시성 제어 위한 lock
+    private final ConcurrentHashMap<Long, ReentrantLock> lockMap = new ConcurrentHashMap<>();  // 사용자 ID별로 ReentrantLock 관리
 
     public UserPoint chargePoints(long id, long chargeAmount) {
 
         chargeValidations(id, chargeAmount);
 
+        // 사용자 ID별로 락 생성 또는 가져오기
+        lockMap.putIfAbsent(id, new ReentrantLock());
+        ReentrantLock lock = lockMap.get(id);
         lock.lock();
+
         try{
             long prevPoint = 0;
             UserPoint userPoint = userPointTable.selectById(id);
@@ -85,7 +89,10 @@ public class PointService {
 
         usePointsValidations(id, useAmount);
 
+        lockMap.putIfAbsent(id, new ReentrantLock());
+        ReentrantLock lock = lockMap.get(id);
         lock.lock();
+
         try{
             UserPoint userPoint = userPointTable.selectById(id);
             if (userPoint == null){
